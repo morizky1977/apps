@@ -252,9 +252,9 @@ async def forgot_password(payload: ForgotPasswordRequest):
 
     try:
         await send_otp_email(email, user.get("name", "Pengguna"), otp)
-    except Exception as e:
-        logger.exception("Failed to send OTP email")
-        raise HTTPException(status_code=502, detail="Gagal mengirim email OTP")
+    except Exception:
+        # Swallow errors to prevent user enumeration via email-service side channel.
+        logger.exception("Failed to send OTP email (returning generic OK)")
 
     return generic_ok
 
