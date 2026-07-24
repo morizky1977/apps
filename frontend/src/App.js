@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import AuthPage from "@/pages/AuthPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import Dashboard from "@/pages/Dashboard";
 import Tasks from "@/pages/Tasks";
 import Evaluation from "@/pages/Evaluation";
@@ -29,6 +30,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/masuk" element={<PublicOnly><AuthPage /></PublicOnly>} />
+            <Route path="/lupa-sandi" element={<PublicOnly><ForgotPasswordPage /></PublicOnly>} />
             <Route element={<Protected><AppLayout /></Protected>}>
               <Route path="/" element={<Navigate to="/dasbor" replace />} />
               <Route path="/dasbor" element={<Dashboard />} />

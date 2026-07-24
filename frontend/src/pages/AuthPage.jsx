@@ -101,6 +101,13 @@ export default function AuthPage() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
+              {mode === "login" && (
+                <div className="mt-2 text-right">
+                  <a href="/lupa-sandi" data-testid="forgot-password-link" className="text-xs font-semibold text-[#002FA7] underline underline-offset-4 hover:text-zinc-900">
+                    Lupa kata sandi?
+                  </a>
+                </div>
+              )}
             </div>
 
             <button

@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime, timezone, timedelta, date
 import bcrypt
 import jwt
+import secrets
+import httpx
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -23,6 +25,9 @@ db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ['JWT_SECRET']
 EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
+EMERGENT_EMAIL_KEY = os.environ['EMERGENT_EMAIL_KEY']
+EMAIL_FROM_NAME = os.environ['EMAIL_FROM_NAME']
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -147,6 +152,147 @@ async def login(payload: UserLogin):
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(current_user=Depends(get_current_user)):
     return UserOut(**current_user)
+
+# ---------- Forgot Password (OTP via Email) ----------
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+def build_otp_email_html(name: str, otp: str) -> str:
+    return f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background-color:#F9F9F8;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F9F9F8;padding:40px 0;">
+  <tr><td align="center">
+    <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #0A0A0A;">
+      <tr><td style="padding:32px 32px 8px 32px;">
+        <p style="margin:0;font-size:11px;letter-spacing:3px;color:#525252;text-transform:uppercase;font-weight:700;">Ritme · Reset Kata Sandi</p>
+        <h1 style="margin:16px 0 0 0;font-size:28px;line-height:1.1;letter-spacing:-1px;color:#0A0A0A;font-weight:900;">Halo {name},</h1>
+      </td></tr>
+      <tr><td style="padding:8px 32px 24px 32px;">
+        <p style="margin:0;font-size:14px;line-height:1.6;color:#525252;">
+          Kami menerima permintaan untuk mereset kata sandi akun Anda. Gunakan kode OTP di bawah ini untuk melanjutkan.
+        </p>
+      </td></tr>
+      <tr><td style="padding:0 32px 24px 32px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0A;">
+          <tr><td align="center" style="padding:24px;">
+            <p style="margin:0;font-size:11px;letter-spacing:3px;color:#a1a1aa;text-transform:uppercase;font-weight:700;">Kode OTP</p>
+            <p style="margin:8px 0 0 0;font-size:38px;letter-spacing:12px;color:#ffffff;font-weight:900;font-family:'Courier New',monospace;">{otp}</p>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:0 32px 24px 32px;">
+        <p style="margin:0;font-size:13px;line-height:1.6;color:#525252;">
+          Kode ini berlaku selama <strong style="color:#0A0A0A;">1 jam</strong>. Jangan bagikan kode ini kepada siapa pun.
+        </p>
+        <p style="margin:12px 0 0 0;font-size:13px;line-height:1.6;color:#525252;">
+          Jika Anda tidak meminta reset kata sandi, abaikan email ini — kata sandi Anda tetap aman.
+        </p>
+      </td></tr>
+      <tr><td style="padding:20px 32px;border-top:1px solid #E5E5E5;">
+        <p style="margin:0;font-size:11px;color:#a1a1aa;">Ritme — Pencatat & Evaluasi Kerja Rutin</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>
+""".strip()
+
+async def send_otp_email(to_email: str, name: str, otp: str) -> None:
+    payload = {
+        "to": [to_email],
+        "subject": "Kode OTP Reset Kata Sandi — Ritme",
+        "html": build_otp_email_html(name, otp),
+        "from_name": EMAIL_FROM_NAME,
+    }
+    async with httpx.AsyncClient(timeout=30) as http_client:
+        resp = await http_client.post(
+            f"{EMAIL_BASE_URL}/api/v1/email/send",
+            headers={"X-Email-Key": EMERGENT_EMAIL_KEY},
+            json=payload,
+        )
+        resp.raise_for_status()
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    email = payload.email.lower()
+    user = await db.users.find_one({"email": email})
+    # Always return the same message to prevent user enumeration
+    generic_ok = {"ok": True, "message": "Jika email terdaftar, kode OTP telah dikirim."}
+    if not user:
+        return generic_ok
+
+    otp = f"{secrets.randbelow(1000000):06d}"
+    otp_hash = bcrypt.hashpw(otp.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(hours=1)
+
+    # Invalidate previous unused OTPs for this email
+    await db.password_resets.update_many(
+        {"email": email, "used": False},
+        {"$set": {"used": True, "invalidated_at": now.isoformat()}},
+    )
+    await db.password_resets.insert_one({
+        "id": str(uuid.uuid4()),
+        "email": email,
+        "user_id": user["id"],
+        "otp_hash": otp_hash,
+        "expires_at": expires_at.isoformat(),
+        "created_at": now.isoformat(),
+        "used": False,
+        "attempts": 0,
+    })
+
+    try:
+        await send_otp_email(email, user.get("name", "Pengguna"), otp)
+    except Exception as e:
+        logger.exception("Failed to send OTP email")
+        raise HTTPException(status_code=502, detail="Gagal mengirim email OTP")
+
+    return generic_ok
+
+@api_router.post("/auth/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Kata sandi minimal 6 karakter")
+
+    email = payload.email.lower()
+    record = await db.password_resets.find_one(
+        {"email": email, "used": False},
+        sort=[("created_at", -1)],
+    )
+    if not record:
+        raise HTTPException(status_code=400, detail="Kode OTP tidak valid atau sudah kedaluwarsa")
+
+    expires_at = datetime.fromisoformat(record["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        await db.password_resets.update_one({"id": record["id"]}, {"$set": {"used": True}})
+        raise HTTPException(status_code=400, detail="Kode OTP sudah kedaluwarsa")
+
+    if record.get("attempts", 0) >= 5:
+        await db.password_resets.update_one({"id": record["id"]}, {"$set": {"used": True}})
+        raise HTTPException(status_code=429, detail="Terlalu banyak percobaan. Minta kode baru.")
+
+    if not bcrypt.checkpw(payload.otp.encode("utf-8"), record["otp_hash"].encode("utf-8")):
+        await db.password_resets.update_one(
+            {"id": record["id"]}, {"$inc": {"attempts": 1}}
+        )
+        raise HTTPException(status_code=400, detail="Kode OTP salah")
+
+    # Update password
+    await db.users.update_one(
+        {"id": record["user_id"]},
+        {"$set": {"password": hash_password(payload.new_password)}},
+    )
+    await db.password_resets.update_one({"id": record["id"]}, {"$set": {"used": True}})
+    return {"ok": True, "message": "Kata sandi berhasil direset. Silakan masuk."}
 
 # ---------- Task Routes ----------
 @api_router.post("/tasks", response_model=Task)

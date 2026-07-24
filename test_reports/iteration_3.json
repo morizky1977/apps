@@ -1,0 +1,44 @@
+{
+  "summary": "Tested Ritme Forgot Password (OTP via email) feature — backend endpoints (9 pytest cases, 100% pass) and frontend flow (navigation, step 1→2, password mismatch, change-email, resend, happy-path E2E reset + login). Found and fixed one critical import bug in App.js that would have prevented the /lupa-sandi route from loading.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/forgot-password", "issue": "When email service call fails, endpoint returns 502 leaking that the email exists — breaks anti-enumeration invariant. Suggest: catch exception, log, and still return generic 200. Currently registered-email path leaks via 502 when Resend has issues."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_forgot_password.py",
+    "/app/test_reports/pytest/forgot_password_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL (security hardening): In /api/auth/forgot-password, swallow email-send exceptions and always return the generic 200 message so that an email-service failure does not enable user enumeration.",
+    "Consider adding a client-side password strength/mismatch inline hint in ForgotPasswordPage step 2 (currently only shown on submit via toast — works but late feedback)."
+  ],
+  "critical_code_review_comments": [
+    "CRITICAL (FIXED by tester): /app/frontend/src/App.js referenced <ForgotPasswordPage /> without importing it — would have crashed the SPA. Added `import ForgotPasswordPage from \"@/pages/ForgotPasswordPage\";`.",
+    "Security: password_resets.otp_hash correctly stored as bcrypt hash (verified via direct DB inspection). No plaintext OTP anywhere.",
+    "Anti-enumeration: unregistered email correctly returns generic 200. However registered email path can raise 502 on email-send failure, which is an enumeration side-channel.",
+    "Rate limit: 5 wrong attempts then 6th → 429 + record marked used ✓",
+    "Single-use: used OTP cannot be replayed ✓",
+    "Invalidation: new forgot-password request marks previous unused records used=true ✓",
+    "Expiry: expired OTP correctly rejected with 400 'kedaluwarsa' ✓",
+    "Password validation: <6 chars rejected with 400 ✓",
+    "reset-password after wrong OTP correctly increments attempts counter ✓"
+  ],
+  "updated_files": [
+    "/app/frontend/src/App.js (added missing ForgotPasswordPage import)",
+    "/app/backend/tests/test_forgot_password.py (new — 9 tests, all passing)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all flows verified incl. happy-path E2E)"},
+  "test_credentials": "Ephemeral users created per test via /api/auth/register with prefix `test_pw_e2e_` / `test_fp_`; cleaned up after each test class.",
+  "seed_data_creation": "None persistent. Test uses direct MongoDB injection into `password_resets` collection with a known bcrypt-hashed OTP to bypass real email delivery for happy-path verification. All injected records and users cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live in /app/backend/tests/test_forgot_password.py — run with `pytest -n 0` (pytest.ini enforces xdist loadscope). For happy-path E2E we inject OTP directly into MongoDB collection `password_resets` using bcrypt.hashpw because backend never returns plaintext OTP (correct). If retesting, note that hitting /api/auth/forgot-password will overwrite/invalidate any manually injected OTP — always re-inject AFTER submitting step 1. Frontend `/lupa-sandi` route now works after adding the missing import. E2E fully verified: reset → toast success → redirect to /masuk → login with new password succeeds (200), old fails (401).",
+  "rca of the issue": "Root cause of the SPA crash risk: main agent added the /lupa-sandi Route element and created the ForgotPasswordPage component but forgot to add the corresponding ES module import in App.js. Reproduction: navigate to /masuk → React attempts to render the app tree containing a JSX reference to `ForgotPasswordPage` (an undefined identifier) → ReferenceError. Mitigation applied: added `import ForgotPasswordPage from \"@/pages/ForgotPasswordPage\";` to App.js. Verified: /masuk loads, /lupa-sandi loads, full reset flow works."
+}
