@@ -1,0 +1,91 @@
+{
+  "theme_and_identity": {
+    "theme_name": "Neo-Swiss Utility (Clean & Modern)",
+    "description": "A highly distinctive, non-generic productivity tracker dashboard web app (SaaS). Built for professionals to track routines and weekly performance. The design relies on 'Swiss Brutalism / Utility'—monochrome foundations with highly functional, intense accent colors. Avoids standard AI design slop.",
+    "emotional_tone": "Authority, Clarity, Truth, Focus.",
+    "language": "Bahasa Indonesia",
+    "theme_mode": "Light mode preferred by default for maximum data clarity, utilizing off-whites and strict monochrome contrasts."
+  },
+  "typography": {
+    "rules": [
+      "NEVER use Inter, Roboto, Lato, or Open Sans.",
+      "Always left-align text content and headings for optimum reading flow. Never center-align unless inside a strict grid module or empty state.",
+      "Headings must use tight tracking (tracking-tight or tracking-tighter).",
+      "Overlines and labels must be uppercase, tiny, and have wide spacing (tracking-[0.2em])."
+    ],
+    "primary_heading_font": "Cabinet Grotesk",
+    "secondary_body_font": "Satoshi",
+    "fallback_fonts": ["General Sans", "IBM Plex Sans"],
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "body": "text-base leading-relaxed text-zinc-700",
+      "label": "text-xs font-bold uppercase tracking-[0.2em] text-zinc-500"
+    }
+  },
+  "colors": {
+    "strategy": "Structural Grayscale + Functional Accents. 95% of the UI is monochrome (bone-white, stark white, pure blacks/dark greys). Colors exist purely to guide action or indicate performance status.",
+    "background": "#F9F9F8 (Off-white warm tint to reduce clinical feel)",
+    "surface": "#FFFFFF (Pure white for actionable cards and task rows)",
+    "borders": "#E5E5E5 (Soft structural borders) and #0A0A0A (1px stark borders for high contrast focal points)",
+    "text_primary": "#0A0A0A",
+    "text_secondary": "#525252",
+    "accents": {
+      "primary_action": "#002FA7 (International Klein Blue - sharp, authoritative CTA, not typical SaaS blue)",
+      "success_metric": "#10B981 (Emerald Green for target durasi vs aktual target hit)",
+      "warning_metric": "#F59E0B (Amber for at risk)",
+      "danger_metric": "#E53935 (Signal Red for missed target/over duration)"
+    },
+    "forbidden_colors": ["#7351B7", "#1B93A4", "Any generic full-screen SaaS gradient"]
+  },
+  "layouts_and_grids": {
+    "global_structure": "Progressive disclosure layout. Sidebar navigation (240-280px) on the left + Main Content Area on the right.",
+    "main_content_grid": "Top area contains a dense 'Metric Strip' (grid-cols-1 sm:grid-cols-2 lg:grid-cols-4) for Ringkasan Performa (Weekly stats). The main canvas uses a strict grid layout for the CRUD task list (Daftar Tugas) and Kalender.",
+    "bento_grid_protocol": "High Density Grid (Mode B). Every pixel must be utilized. Use 'h-full' on children to ensure they stretch to match neighbors. No jagged bottoms.",
+    "spacing_scale": "Generous Spacing (p-6, p-8, p-12) for structural containers to provide breathing room. Very dense spacing inside data tables and lists (p-3, p-4).",
+    "alignment": "Strictly Left-aligned to enhance data scanability. Asymmetry over symmetry."
+  },
+  "component_strategies": {
+    "cards_and_surfaces": "Grid Borders ('The Technical Look'). Expose the skeleton using 'border-collapse' style or sharp 1px borders. AVOID soft diffuse shadows entirely. Use sharp solid borders to ground elements.",
+    "buttons": "Pill-shaped or sharp rectangular edge. Must have defined interaction animations (e.g., hover:bg-black hover:text-white). NEVER use 'transition: all'.",
+    "forms_and_inputs": "Use Shadcn Form/Input components, but HEAVILY CUSTOMIZE them to remove the 'Vercel-look'. Inputs should have sharp corners or very slight radii (rounded-sm) and stark borders.",
+    "data_tables": "Daftar Tugas Rutin: Dense, left-aligned, highly scannable rows. Use strict bottom-borders for separation rather than enclosed cards.",
+    "ai_insight_card": "Wawasan AI: Place prominently on the dashboard. Use 'Glassmorphism (Crystal Variant)' layered over the geometric abstract art texture, OR a striking Klein Blue background with stark white text."
+  },
+  "visual_enhancers": {
+    "motion": "Use Framer Motion for smooth state changes, micro-interactions, and staggered entrance animations for the task list.",
+    "icons": "Use Phosphor Icons (@phosphor-icons/react) for a technical, crisp aesthetic instead of standard Lucide.",
+    "textures": "Subtle noise overlays where appropriate. Avoid glossy, generic modern SaaS aesthetics."
+  },
+  "images": {
+    "ai_insight_background": {
+      "url": "https://images.unsplash.com/photo-1595411425732-e69c1abe2763?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwZ2VvbWV0cmljJTIwYWJzdHJhY3QlMjBhcnR8ZW58MHx8fHwxNzg0ODgxMjk2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Black and white stark geometric pattern to be used as a subtle background header or mask image texture for the 'Wawasan AI' (AI Insight) card."
+    },
+    "user_avatar": {
+      "url": "https://images.unsplash.com/photo-1657180881998-c8a03ef22695?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtb2Rlcm4lMjBtaW5pbWFsaXN0JTIwYXZhdGFyJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzg0ODgxMjk2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Professional modern portrait for the user profile section in the sidebar/header navigation."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Review package.json. If framer-motion, @phosphor-icons/react, or specific Shadcn components are missing, ensure they are installed/added.",
+    "Implement the UI directly using Tailwind CSS and React/JSX.",
+    "Ensure the entire application uses Bahasa Indonesia (e.g., 'Masuk', 'Dasbor', 'Daftar Tugas', 'Kategori', 'Prioritas', 'Catatan', 'Target vs Aktual').",
+    "Follow the precise typography rules: do not use Inter. Use Cabinet Grotesk for headers and Satoshi/General Sans for body text via Next/Google fonts or font-family classes.",
+    "All interactive elements must have proper `:hover`, `:focus`, and `:active` states with accessible contrast ratios."
+  ],
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "DO NOT use dark colors as gradients. Dark colors look good when used independently.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "You MUST NOT apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements.",
+    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons. Use Phosphor Icons.",
+    "Every interaction needs micro-animations - hover states, transitions, and entrance animations.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., data-testid='login-submit-button', data-testid='task-status-toggle').",
+    "Use `sonner` for toasts. Do NOT use HTML-based components for advanced interactions like dropdowns, calendars, or modals (Use Shadcn).",
+    "CRITICAL: Do not use completely transparent backgrounds over surfaces that have content under them (e.g., Dropdowns, Sticky headers)."
+  ]
+}
