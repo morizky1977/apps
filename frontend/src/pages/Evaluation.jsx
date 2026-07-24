@@ -159,24 +159,28 @@ function MarkdownLite({ text }) {
 
   const renderInline = (t) => {
     const parts = t.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((p, i) => p.startsWith("**") ? <strong key={i}>{p.slice(2, -2)}</strong> : <span key={i}>{p}</span>);
+    return parts.map((p, i) => p.startsWith("**")
+      ? <strong key={`b-${i}-${p}`}>{p.slice(2, -2)}</strong>
+      : <span key={`s-${i}-${p.slice(0, 8)}`}>{p}</span>
+    );
   };
 
   return (
     <div className="prose prose-zinc max-w-none">
       {blocks.map((b, i) => {
-        if (b.type === "h") return <h4 key={i} className="font-display text-lg font-bold tracking-tight mt-6 first:mt-0 border-l-2 border-[#002FA7] pl-3">{b.text}</h4>;
+        const k = `${b.type}-${i}-${(b.text || b.items?.[0] || "").slice(0, 24)}`;
+        if (b.type === "h") return <h4 key={k} className="font-display text-lg font-bold tracking-tight mt-6 first:mt-0 border-l-2 border-[#002FA7] pl-3">{b.text}</h4>;
         if (b.type === "ul") return (
-          <ul key={i} className="mt-3 space-y-2">
+          <ul key={k} className="mt-3 space-y-2">
             {b.items.map((it, j) => (
-              <li key={j} className="flex gap-3 text-sm text-zinc-700 leading-relaxed">
+              <li key={`${k}-li-${j}-${it.slice(0, 20)}`} className="flex gap-3 text-sm text-zinc-700 leading-relaxed">
                 <span className="text-[#002FA7] font-bold mt-1">▸</span>
                 <span>{renderInline(it)}</span>
               </li>
             ))}
           </ul>
         );
-        return <p key={i} className="text-sm text-zinc-700 leading-relaxed mt-3">{renderInline(b.text)}</p>;
+        return <p key={k} className="text-sm text-zinc-700 leading-relaxed mt-3">{renderInline(b.text)}</p>;
       })}
     </div>
   );

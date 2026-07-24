@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -37,16 +37,16 @@ export default function Tasks() {
   const [form, setForm] = useState(emptyForm);
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiClient.get("/tasks");
       setTasks(res.data);
     } catch (e) { toast.error("Gagal memuat tugas"); }
     finally { setLoading(false); }
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (t) => {

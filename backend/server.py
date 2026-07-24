@@ -326,6 +326,7 @@ Berikan evaluasi ringkas dengan format berikut (gunakan markdown ringan, tanpa e
 ## Saran Konkret untuk Minggu Depan
 - (3-4 langkah spesifik dan dapat dijalankan)"""
 
+    insight_text = ""
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
