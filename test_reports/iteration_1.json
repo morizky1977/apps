@@ -1,0 +1,43 @@
+{
+  "summary": "First-finish smoke test for Ritme (Kerja Rutin). Backend REST + JWT auth + task CRUD + weekly evaluation + Claude Sonnet 4.5 AI insight all working. Frontend end-to-end flow (register -> dashboard -> tasks CRUD -> evaluation with AI insight -> logout) verified via Playwright. One non-blocking dev-server overlay observed.",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "POST /api/auth/register returns JWT token + user object",
+    "GET /api/auth/me with Bearer token returns profile",
+    "POST /api/tasks creates task (all fields persisted)",
+    "GET /api/tasks lists only current user's tasks",
+    "PATCH /api/tasks/{id} updates fields (actual_duration verified)",
+    "DELETE /api/tasks/{id} returns 200",
+    "GET /api/evaluations/weekly returns week_start/week_end + stats (total_tasks, selesai, proses, belum, completion_rate, target/actual mins, efficiency, score, by_day, by_category)",
+    "POST /api/evaluations/weekly/insight returns Bahasa Indonesia insight ~1400 chars using Claude Sonnet 4.5",
+    "Authorization: /api/tasks and /api/evaluations/weekly return 401 without Bearer token",
+    "User isolation: newly registered User B sees 0 tasks (User A's tasks not leaked)",
+    "Frontend: register on /masuk -> auto-redirect to /dasbor",
+    "Frontend: sidebar nav to /tugas, add task modal opens and saves task",
+    "Frontend: 3 tasks with different status (selesai/proses/belum) created and listed",
+    "Frontend: /dasbor metrics update (selesai 1/3 33.3%, durasi 95m/180m, efisiensi 52.8%, skor 41.1)",
+    "Frontend: /evaluasi eval-total=3, generate-insight-btn triggers AI, insight-content populated with real Claude output (1436 chars, Bahasa Indonesia)",
+    "Frontend: toast 'Wawasan AI berhasil dibuat' shown; logout returns to /masuk"
+  ],
+  "failed": [
+    {
+      "area": "frontend / dev tooling",
+      "issue": "Webpack dev-server error overlay iframe intercepts clicks after 'ResizeObserver loop completed with undelivered notifications' warning triggered by Radix Dialog. Overlay had to be manually removed from DOM during automated test to click add-task-btn/nav.",
+      "evidence": "Playwright: '<iframe id=\"webpack-dev-server-client-overlay\"> intercepts pointer events'. Real users in production build unaffected, but during preview it will block user clicks after opening/closing the task modal.",
+      "priority": "MEDIUM"
+    },
+    {
+      "area": "frontend a11y",
+      "issue": "Radix DialogContent missing Description/aria-describedby (console warning, 4 occurrences on Tasks page dialog).",
+      "evidence": "console warning: 'Missing Description or aria-describedby={undefined} for {DialogContent}'",
+      "priority": "LOW"
+    }
+  ],
+  "action_items": [
+    "Consider silencing ResizeObserver benign error in dev overlay (e.g., patch ResizeObserver or configure webpack-dev-server client-overlay to ignore warnings) so users on the preview URL are not blocked by the error iframe.",
+    "Add DialogDescription (or aria-describedby) to the task create/edit Dialog in Tasks.jsx to remove Radix a11y warning."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100% (core flow); dev overlay is workaround-required"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}
