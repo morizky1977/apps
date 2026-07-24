@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -124,6 +124,9 @@ export default function Tasks() {
                 <DialogTitle className="font-display text-2xl font-black tracking-tighter">
                   {editing ? "Ubah Tugas" : "Tugas Baru"}
                 </DialogTitle>
+                <DialogDescription className="text-sm text-zinc-500">
+                  Isi detail tugas rutin. Semua field membantu perhitungan performa mingguan.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={save} className="space-y-4">
                 <div>
