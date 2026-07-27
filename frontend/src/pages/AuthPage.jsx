@@ -6,11 +6,13 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "@phosphor-icons/react";
 
+const SECURITY_QUESTION = "Siapa nama Presiden Indonesia yang sedang berkuasa saat ini dan kalian cintai?";
+
 export default function AuthPage() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login"); // login | register
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", security_answer: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (e) => {
@@ -21,7 +23,7 @@ export default function AuthPage() {
         await login(form.email, form.password);
         toast.success("Berhasil masuk");
       } else {
-        await register(form.name, form.email, form.password);
+        await register(form.name, form.email, form.password, form.security_answer);
         toast.success("Akun berhasil dibuat");
       }
       navigate("/dasbor");
