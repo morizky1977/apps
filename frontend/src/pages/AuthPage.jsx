@@ -110,6 +110,23 @@ export default function AuthPage() {
               )}
             </div>
 
+            {mode === "register" && (
+              <div className="border border-zinc-200 bg-zinc-50 p-4">
+                <Label htmlFor="security_answer" className="overline">Pertanyaan Keamanan (opsional, sangat disarankan)</Label>
+                <p className="mt-2 text-sm text-zinc-700 leading-snug">{SECURITY_QUESTION}</p>
+                <Input
+                  id="security_answer" data-testid="auth-security-answer-input"
+                  className="mt-2 rounded-none border-zinc-900 border h-12 bg-white"
+                  placeholder="Jawaban Anda"
+                  value={form.security_answer}
+                  onChange={(e) => setForm({ ...form, security_answer: e.target.value })}
+                />
+                <p className="mt-2 text-xs text-zinc-500">
+                  Digunakan sebagai alternatif reset kata sandi tanpa email. Bisa diatur nanti dari pengaturan.
+                </p>
+              </div>
+            )}
+
             <button
               type="submit" disabled={submitting} data-testid="auth-submit-btn"
               className="w-full h-12 bg-[#0A0A0A] text-white font-semibold text-sm uppercase tracking-[0.15em] inline-flex items-center justify-center gap-2 hover:bg-[#002FA7] transition-colors disabled:opacity-50"

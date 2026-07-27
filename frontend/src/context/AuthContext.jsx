@@ -23,11 +23,19 @@ export const AuthProvider = ({ children }) => {
     return res.data.user;
   };
 
-  const register = async (name, email, password) => {
-    const res = await apiClient.post("/auth/register", { name, email, password });
+  const register = async (name, email, password, security_answer) => {
+    const body = { name, email, password };
+    if (security_answer && security_answer.trim()) body.security_answer = security_answer;
+    const res = await apiClient.post("/auth/register", body);
     localStorage.setItem("kr_token", res.data.token);
     setUser(res.data.user);
     return res.data.user;
+  };
+
+  const refreshUser = async () => {
+    const res = await apiClient.get("/auth/me");
+    setUser(res.data);
+    return res.data;
   };
 
   const logout = () => {
@@ -36,7 +44,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

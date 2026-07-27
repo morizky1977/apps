@@ -29,6 +29,11 @@ EMERGENT_EMAIL_KEY = os.environ['EMERGENT_EMAIL_KEY']
 EMAIL_FROM_NAME = os.environ['EMAIL_FROM_NAME']
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 
+SECURITY_QUESTION = "Siapa nama Presiden Indonesia yang sedang berkuasa saat ini dan kalian cintai?"
+
+def normalize_answer(s: str) -> str:
+    return " ".join(s.strip().lower().split())
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
@@ -37,6 +42,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     name: str
+    security_answer: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -47,6 +53,7 @@ class UserOut(BaseModel):
     email: EmailStr
     name: str
     created_at: str
+    has_security_answer: bool = False
 
 class AuthResponse(BaseModel):
     token: str
@@ -117,6 +124,10 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     return user
 
 # ---------- Auth Routes ----------
+@api_router.get("/auth/security-question")
+async def get_security_question():
+    return {"question": SECURITY_QUESTION}
+
 @api_router.post("/auth/register", response_model=AuthResponse)
 async def register(payload: UserRegister):
     existing = await db.users.find_one({"email": payload.email.lower()})
@@ -131,11 +142,19 @@ async def register(payload: UserRegister):
         "password": hash_password(payload.password),
         "created_at": now,
     }
+    if payload.security_answer and payload.security_answer.strip():
+        doc["security_answer_hash"] = bcrypt.hashpw(
+            normalize_answer(payload.security_answer).encode("utf-8"),
+            bcrypt.gensalt(),
+        ).decode("utf-8")
     await db.users.insert_one(doc)
     token = create_jwt(user_id)
     return AuthResponse(
         token=token,
-        user=UserOut(id=user_id, email=payload.email.lower(), name=payload.name, created_at=now),
+        user=UserOut(
+            id=user_id, email=payload.email.lower(), name=payload.name,
+            created_at=now, has_security_answer=bool(doc.get("security_answer_hash")),
+        ),
     )
 
 @api_router.post("/auth/login", response_model=AuthResponse)
@@ -146,12 +165,36 @@ async def login(payload: UserLogin):
     token = create_jwt(user["id"])
     return AuthResponse(
         token=token,
-        user=UserOut(id=user["id"], email=user["email"], name=user["name"], created_at=user["created_at"]),
+        user=UserOut(
+            id=user["id"], email=user["email"], name=user["name"],
+            created_at=user["created_at"],
+            has_security_answer=bool(user.get("security_answer_hash")),
+        ),
     )
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(current_user=Depends(get_current_user)):
-    return UserOut(**current_user)
+    return UserOut(
+        id=current_user["id"], email=current_user["email"], name=current_user["name"],
+        created_at=current_user["created_at"],
+        has_security_answer=bool(current_user.get("security_answer_hash")),
+    )
+
+class SetSecurityAnswerRequest(BaseModel):
+    security_answer: str
+
+@api_router.post("/auth/security-answer")
+async def set_security_answer(payload: SetSecurityAnswerRequest, current_user=Depends(get_current_user)):
+    if not payload.security_answer or not payload.security_answer.strip():
+        raise HTTPException(status_code=400, detail="Jawaban tidak boleh kosong")
+    answer_hash = bcrypt.hashpw(
+        normalize_answer(payload.security_answer).encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
+    await db.users.update_one(
+        {"id": current_user["id"]}, {"$set": {"security_answer_hash": answer_hash}},
+    )
+    return {"ok": True, "message": "Jawaban keamanan berhasil disimpan"}
 
 # ---------- Forgot Password (OTP via Email) ----------
 class ForgotPasswordRequest(BaseModel):
@@ -292,6 +335,63 @@ async def reset_password(payload: ResetPasswordRequest):
         {"$set": {"password": hash_password(payload.new_password)}},
     )
     await db.password_resets.update_one({"id": record["id"]}, {"$set": {"used": True}})
+    return {"ok": True, "message": "Kata sandi berhasil direset. Silakan masuk."}
+
+# ---------- Forgot Password (Security Question) ----------
+class SecurityResetRequest(BaseModel):
+    email: EmailStr
+    security_answer: str
+    new_password: str
+
+@api_router.post("/auth/reset-password-security")
+async def reset_password_security(payload: SecurityResetRequest):
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Kata sandi minimal 6 karakter")
+    if not payload.security_answer or not payload.security_answer.strip():
+        raise HTTPException(status_code=400, detail="Jawaban tidak boleh kosong")
+
+    email = payload.email.lower()
+    now = datetime.now(timezone.utc)
+
+    # Rate-limit: check attempts in the last 1 hour for this email
+    one_hour_ago = (now - timedelta(hours=1)).isoformat()
+    recent_failed = await db.security_reset_attempts.count_documents({
+        "email": email,
+        "success": False,
+        "created_at": {"$gte": one_hour_ago},
+    })
+    if recent_failed >= 5:
+        raise HTTPException(status_code=429, detail="Terlalu banyak percobaan. Coba lagi dalam 1 jam.")
+
+    user = await db.users.find_one({"email": email})
+    generic_error = HTTPException(status_code=400, detail="Email atau jawaban keamanan salah")
+
+    async def log_attempt(success: bool):
+        await db.security_reset_attempts.insert_one({
+            "email": email,
+            "success": success,
+            "created_at": now.isoformat(),
+        })
+
+    if not user or not user.get("security_answer_hash"):
+        await log_attempt(False)
+        raise generic_error
+
+    normalized = normalize_answer(payload.security_answer).encode("utf-8")
+    if not bcrypt.checkpw(normalized, user["security_answer_hash"].encode("utf-8")):
+        await log_attempt(False)
+        raise generic_error
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password": hash_password(payload.new_password)}},
+    )
+    await log_attempt(True)
+    # Invalidate any pending email OTPs for this user
+    await db.password_resets.update_many(
+        {"email": email, "used": False},
+        {"$set": {"used": True, "invalidated_at": now.isoformat()}},
+    )
     return {"ok": True, "message": "Kata sandi berhasil direset. Silakan masuk."}
 
 # ---------- Task Routes ----------

@@ -1,6 +1,12 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { House, ListChecks, ChartBar, SignOut } from "@phosphor-icons/react";
+import { House, ListChecks, ChartBar, SignOut, ShieldCheck, CheckCircle } from "@phosphor-icons/react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 const NAV = [
   { to: "/dasbor", label: "Dasbor", icon: House, testid: "nav-dasbor" },
@@ -9,8 +15,26 @@ const NAV = [
 ];
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [saving, setSaving] = useState(false);
+  const SECURITY_QUESTION = "Siapa nama Presiden Indonesia yang sedang berkuasa saat ini dan kalian cintai?";
+
+  const saveAnswer = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await apiClient.post("/auth/security-answer", { security_answer: answer });
+      await refreshUser();
+      toast.success("Jawaban keamanan disimpan");
+      setSecurityOpen(false);
+      setAnswer("");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Gagal menyimpan");
+    } finally { setSaving(false); }
+  };
 
   return (
     <div className="min-h-screen flex bg-[#F9F9F8]">
@@ -61,6 +85,54 @@ export default function AppLayout() {
           >
             <SignOut size={14} weight="bold" /> Keluar
           </button>
+
+          <Dialog open={securityOpen} onOpenChange={setSecurityOpen}>
+            <DialogTrigger asChild>
+              <button
+                data-testid="security-settings-btn"
+                className="mt-2 w-full inline-flex items-center gap-2 justify-center px-3 py-2 text-xs font-semibold text-zinc-600 hover:text-zinc-900"
+              >
+                <ShieldCheck size={14} weight="duotone" />
+                {user?.has_security_answer ? (
+                  <span className="inline-flex items-center gap-1">Perbarui Jawaban Keamanan <CheckCircle size={12} weight="fill" className="text-emerald-600" /></span>
+                ) : (
+                  <span>Atur Jawaban Keamanan</span>
+                )}
+              </button>
+            </DialogTrigger>
+            <DialogContent className="rounded-none border-zinc-900 max-w-md" data-testid="security-dialog">
+              <DialogHeader>
+                <DialogTitle className="font-display text-2xl font-black tracking-tighter">
+                  {user?.has_security_answer ? "Perbarui Jawaban" : "Atur Jawaban Keamanan"}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-zinc-500">
+                  Digunakan sebagai alternatif reset kata sandi tanpa email.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={saveAnswer} className="space-y-4">
+                <div className="border border-zinc-200 bg-zinc-50 p-4">
+                  <Label className="overline">Pertanyaan</Label>
+                  <p className="mt-2 text-sm text-zinc-700 leading-snug">{SECURITY_QUESTION}</p>
+                </div>
+                <div>
+                  <Label className="overline">Jawaban Baru</Label>
+                  <Input
+                    required data-testid="security-answer-settings-input"
+                    className="mt-2 rounded-none border-zinc-900"
+                    value={answer} onChange={(e) => setAnswer(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                  <button
+                    type="submit" disabled={saving} data-testid="security-answer-save-btn"
+                    className="px-5 py-3 bg-[#0A0A0A] text-white font-semibold text-xs uppercase tracking-[0.15em] hover:bg-[#002FA7] transition-colors disabled:opacity-50"
+                  >
+                    {saving ? "Menyimpan…" : "Simpan"}
+                  </button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </aside>
 
