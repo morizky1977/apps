@@ -9,6 +9,7 @@ Strategy:
 import os
 import uuid
 import time
+import secrets
 import pytest
 import requests
 import bcrypt
@@ -30,6 +31,11 @@ mongo = MongoClient(MONGO_URL)
 db = mongo[DB_NAME]
 
 
+def _random_password(prefix: str = "Pw") -> str:
+    """Generate a random password >=6 chars for a test run — no hardcoded secrets."""
+    return f"{prefix}{secrets.token_urlsafe(12)}"
+
+
 # ---------- Fixtures ----------
 
 @pytest.fixture(scope="module")
@@ -38,7 +44,7 @@ def registered_user():
     unique = uuid.uuid4().hex[:8]
     creds = {
         "email": f"test_fp_{unique}@ritme.app",
-        "password": "OriginalPass123",
+        "password": _random_password("Orig"),
         "name": f"FP Tester {unique}",
     }
     r = requests.post(f"{API}/auth/register", json=creds, timeout=30)
@@ -140,7 +146,7 @@ def test_reset_password_correct_otp_resets_password_and_can_login(registered_use
     known_otp = "654321"
     _insert_known_otp(email, user["id"], known_otp)
 
-    new_password = "BrandNewPass456"
+    new_password = _random_password("Brand")
     r = requests.post(f"{API}/auth/reset-password", json={
         "email": email, "otp": known_otp, "new_password": new_password
     }, timeout=30)

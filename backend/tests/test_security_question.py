@@ -9,6 +9,7 @@ Covers:
 """
 import os
 import uuid
+import secrets
 import pytest
 import requests
 import bcrypt
@@ -31,8 +32,15 @@ db = mongo[DB_NAME]
 SECURITY_QUESTION_TEXT = "Siapa nama Presiden Indonesia yang sedang berkuasa saat ini dan kalian cintai?"
 
 
-def _register(security_answer=None, password="OriginalPass123"):
+def _random_password(prefix: str = "Pw") -> str:
+    """Generate a random password >=6 chars for a test run — no hardcoded secrets."""
+    return f"{prefix}{secrets.token_urlsafe(12)}"
+
+
+def _register(security_answer=None, password=None):
     unique = uuid.uuid4().hex[:8]
+    if password is None:
+        password = _random_password("Orig")
     body = {
         "email": f"test_sq_{unique}@ritme.app",
         "password": password,
@@ -135,7 +143,7 @@ def test_reset_password_security_normalized_answer_succeeds():
     creds, _, _ = _register(security_answer="Prabowo Subianto")
     try:
         # Use messy answer: extra spaces + different case
-        new_password = "BrandNewPass789"
+        new_password = _random_password("Brand")
         r = requests.post(f"{API}/auth/reset-password-security", json={
             "email": creds["email"],
             "security_answer": "  prabowo   SUBIANTO  ",
